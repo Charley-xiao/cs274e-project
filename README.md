@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-I've come up with an idea of adding a divergence term, called rf_div.
+RF-Div: https://openreview.net/forum?id=FeZimuj6SG
 
 ```bash
 # 0) env
