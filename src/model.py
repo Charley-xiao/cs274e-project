@@ -1,0 +1,1 @@
+# Must provide: create_model(cfg_model, num_classes) -> nn.Module (expects forward(x_t, t, y))
