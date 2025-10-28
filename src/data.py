@@ -1,10 +1,26 @@
-# Must provide: eurosat_dataloaders(root, image_size, batch_size, num_workers)
-# You may also explore the dataset a little bit in a separate notebook
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
-def compute_mean_std(dataset, batch_size, num_workers):
-    loader = DataLoader(dataset, batch_size=64, shuffle=False, num_workers=4)
+def eurosat_dataloaders(root, image_size=64, batch_size=64, num_workers=4):
+    transform = transforms.Compose([
+        transforms.Resize((image_size, image_size)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.3444, 0.3803, 0.4078], std=[0.0914, 0.0651, 0.0552])
+    ])
+
+    dataset = datasets.EuroSAT(root=root, download=True, transform=transform)
+
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+    return train_loader, val_loader
+
+def compute_mean_std(dataset, batch_size=64, num_workers=4):
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     mean = 0.0
     std = 0.0
     total_imgs = 0
