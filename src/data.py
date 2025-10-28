@@ -1,11 +1,13 @@
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
+from .util import EUROSAT_MEAN, EUROSAT_STD, unnormalize_to01
+
 def eurosat_dataloaders(root, image_size=64, batch_size=64, num_workers=4):
     transform = transforms.Compose([
         transforms.Resize((image_size, image_size)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.3444, 0.3803, 0.4078], std=[0.0914, 0.0651, 0.0552])
+        transforms.Normalize(mean=EUROSAT_MEAN, std=EUROSAT_STD)
     ])
 
     dataset = datasets.EuroSAT(root=root, download=True, transform=transform)

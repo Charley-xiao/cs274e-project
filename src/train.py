@@ -12,6 +12,7 @@ from .loss import rf_loss, rf_div_loss
 from .ode import integrate
 from .data import eurosat_dataloaders
 from .model import create_model
+from .util import unnormalize_to01
 
 def set_seed(seed: int = 42):
     torch.manual_seed(seed)
@@ -135,7 +136,7 @@ def train(cfg: Dict[str, Any]):
                                y=y_grid, guidance_scale=cfg.get("sample", {}).get("guidance_scale", 0.0))
                 imgs.append(x1)
             X = torch.cat(imgs, dim=0)
-            save_image((X.clamp(-1,1)+1)/2.0, out_dir / f"samples/ep{ep:03d}_grid.png", nrow=per_class)
+            save_image(unnormalize_to01(X), out_dir / f"samples/ep{ep:03d}_grid.png", nrow=per_class)
 
         ckpt = {
             "model_ema": ema.shadow,
