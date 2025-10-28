@@ -6,6 +6,7 @@ from torchvision.utils import save_image
 
 from .ode import integrate
 from .model import create_model
+from .util import unnormalize_to01
 
 @torch.no_grad()
 def main():
@@ -56,12 +57,12 @@ def main():
         X = torch.cat(X, dim=0)
 
         grid_path = out_dir / f"grid_nfe{nfe}.png"
-        save_image((X.clamp(-1,1)+1)/2.0, grid_path, nrow=int(args.num**0.5) or 8)
+        save_image(unnormalize_to01(X), grid_path, nrow=int(args.num**0.5) or 8)
 
         nfe_dir = out_dir / f"nfe{nfe}"
         nfe_dir.mkdir(exist_ok=True)
         for i, x in enumerate(X):
-            save_image((x.clamp(-1,1)+1)/2.0, nfe_dir / f"{i:05d}.png")
+            save_image(unnormalize_to01(x), nfe_dir / f"{i:05d}.png")
 
 if __name__ == "__main__":
     main()
