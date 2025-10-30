@@ -3,6 +3,7 @@ import argparse, json, os
 from pathlib import Path
 from typing import Dict, Any, Tuple
 import time
+from tqdm import trange
 
 import yaml
 import torch
@@ -127,7 +128,7 @@ def train(cfg: Dict[str, Any]):
     hutch_probes = cfg.get("loss", {}).get("hutch_probes", 1)
 
     step = 0
-    for ep in range(1, epochs + 1):
+    for ep in trange(1, epochs + 1):
         model.train()
         for x, y in train_loader:
             x = x.to(device, non_blocking=True)          # (B,C,H,W)
