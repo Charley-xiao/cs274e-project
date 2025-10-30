@@ -67,11 +67,11 @@ def train(cfg: Dict[str, Any]):
 
     opt = optim.AdamW(
         model.parameters(),
-        lr=cfg["opt"].get("lr", 2e-4),
+        lr=float(cfg["opt"].get("lr", 2e-4)),
         betas=cfg["opt"].get("betas", (0.9, 0.999)),
-        weight_decay=cfg["opt"].get("wd", 2e-2),
+        weight_decay=float(cfg["opt"].get("wd", 2e-2)),
     )
-    ema = EMA(model, decay=cfg["opt"].get("ema", 0.999))
+    ema = EMA(model, decay=float(cfg["opt"].get("ema", 0.999)))
 
     # Output dirs
     name = cfg.get("name", "rf_cond")
