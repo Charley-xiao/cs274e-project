@@ -7,7 +7,11 @@ data:
   num_workers: 4
 model:
   in_channels: 3
-  # add model hyperparams as needed (channels, depth, etc.)
+  base_channels: 48
+  channel_mult: [1, 2, 4]
+  num_res_blocks: 1
+  cond_dim: 256
+  dropout: 0.0
 opt:
   lr: 2e-4
   wd: 2e-2
@@ -17,6 +21,7 @@ train:
   t_sampling: "uniform"   # or "beta_half"
   log_every: 100
   grad_clip: 1.0
+  save_every: 10
 sample:
   solver: "heun"          # "euler" | "heun"
   guidance_scale: 0.0     # runtime CFG scale

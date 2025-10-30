@@ -74,9 +74,6 @@ def train(cfg: Dict[str, Any]):
     val_size = len(val_loader.dataset)
     num_classes = cfg["cond"]["num_classes"]
 
-    train_targets = torch.tensor(train_loader.dataset.targets)
-    class_counts = torch.bincount(train_targets, minlength=num_classes).tolist()
-
     # Model (+ num_classes passed in cfg['cond'])
     model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
     param_stats = count_parameters(model)
@@ -100,7 +97,6 @@ def train(cfg: Dict[str, Any]):
         "train_size": train_size,
         "val_size": val_size,
         "num_classes": num_classes,
-        "class_counts": class_counts,
         "image_size": cfg["data"]["image_size"],
         "batch_size": cfg["data"]["batch_size"],
         "model_params": param_stats,
@@ -114,7 +110,6 @@ def train(cfg: Dict[str, Any]):
     # also log to console
     print(f"[INFO] run: {name}")
     print(f"[INFO] train size: {train_size} | val size: {val_size} | classes: {num_classes}")
-    print(f"[INFO] class counts: {class_counts}")
     print(f"[INFO] model params: {param_stats['trainable']:,} trainable / {param_stats['total']:,} total")
     print(f"[INFO] data/model setup took {time.time() - t0:.2f}s")
 
@@ -159,33 +154,34 @@ def train(cfg: Dict[str, Any]):
                     print(f"[ep {ep:03d} | step {step:06d}] loss={loss.item():.4f} lr={lr:.2e}")
 
         # quick EMA samples (class-conditional grid for first few classes)
-        model.eval()
-        ema_model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
-        ema.copy_to(ema_model)
-        with torch.no_grad():
-            C = cfg.get("model", {}).get("in_channels", 3)
-            H = W = cfg["data"]["image_size"]
-            n_show = min(cfg["cond"]["num_classes"], 10)
-            per_class = 4
-            imgs = []
-            for cls in range(n_show):
-                z0 = torch.randn(per_class, C, H, W, device=device)
-                y_grid = torch.full((per_class,), cls, device=device, dtype=torch.long)
-                x1 = integrate(lambda X, T, Y: ema_model(X, T, Y),
-                               z0, nfe=4, solver=cfg.get("sample", {}).get("solver", "heun"),
-                               y=y_grid, guidance_scale=cfg.get("sample", {}).get("guidance_scale", 0.0))
-                imgs.append(x1)
-            X = torch.cat(imgs, dim=0)
-            save_image(unnormalize_to01(X), out_dir / f"samples/ep{ep:03d}_grid.png", nrow=per_class)
+        if ep % cfg["train"].get("save_every", 10) == 0:
+            model.eval()
+            ema_model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
+            ema.copy_to(ema_model)
+            with torch.no_grad():
+                C = cfg.get("model", {}).get("in_channels", 3)
+                H = W = cfg["data"]["image_size"]
+                n_show = min(cfg["cond"]["num_classes"], 10)
+                per_class = 4
+                imgs = []
+                for cls in range(n_show):
+                    z0 = torch.randn(per_class, C, H, W, device=device)
+                    y_grid = torch.full((per_class,), cls, device=device, dtype=torch.long)
+                    x1 = integrate(lambda X, T, Y: ema_model(X, T, Y),
+                                z0, nfe=4, solver=cfg.get("sample", {}).get("solver", "heun"),
+                                y=y_grid, guidance_scale=cfg.get("sample", {}).get("guidance_scale", 0.0))
+                    imgs.append(x1)
+                X = torch.cat(imgs, dim=0)
+                save_image(unnormalize_to01(X), out_dir / f"samples/ep{ep:03d}_grid.png", nrow=per_class)
 
-        ckpt = {
-            "model_ema": ema.shadow,
-            "model": model.state_dict(),
-            "config": cfg,
-            "step": step,
-            "epoch": ep,
-        }
-        torch.save(ckpt, out_dir / "last.ckpt")
+            ckpt = {
+                "model_ema": ema.shadow,
+                "model": model.state_dict(),
+                "config": cfg,
+                "step": step,
+                "epoch": ep,
+            }
+            torch.save(ckpt, out_dir / "last.ckpt")
 
     with open(out_dir / "metrics.json", "w") as f:
         json.dump({"epochs": epochs, "steps": step}, f, indent=2)
