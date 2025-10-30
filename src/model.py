@@ -30,7 +30,11 @@ def timestep_embedding(t: torch.Tensor, dim: int) -> torch.Tensor:
 
 
 def _n_groups(c: int) -> int:
-    return min(32, c)
+    # pick the largest group size <= 32 that divides c
+    for g in (32, 16, 8, 4, 2, 1):
+        if c % g == 0:
+            return g
+    raise ValueError(f"Cannot find group size for {c} channels")
 
 
 class ResBlock(nn.Module):
