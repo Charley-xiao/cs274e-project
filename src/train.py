@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse, json, os
 from pathlib import Path
 from typing import Dict, Any, Tuple
+import time
 
 import yaml
 import torch
@@ -50,20 +51,34 @@ def maybe_drop_labels(y: torch.Tensor, p_uncond: float) -> torch.Tensor:
     y_dropped[mask] = -1
     return y_dropped
 
+def count_parameters(model: torch.nn.Module) -> Dict[str, int]:
+    total = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return {"total": total, "trainable": trainable}
+
 def train(cfg: Dict[str, Any]):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"[INFO] using device: {device}")
     set_seed(cfg.get("seed", 42))
 
     # Data
+    t0 = time.time()
     train_loader, val_loader = eurosat_dataloaders(
         root=cfg["data"]["root"],
         image_size=cfg["data"]["image_size"],
         batch_size=cfg["data"]["batch_size"],
         num_workers=cfg["data"].get("num_workers", 4),
-    ) # TODO: actually use val_loader in a good way
+    )
+    train_size = len(train_loader.dataset)
+    val_size = len(val_loader.dataset)
+    num_classes = cfg["cond"]["num_classes"]
+
+    train_targets = torch.tensor(train_loader.dataset.targets)
+    class_counts = torch.bincount(train_targets, minlength=num_classes).tolist()
 
     # Model (+ num_classes passed in cfg['cond'])
     model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
+    param_stats = count_parameters(model)
 
     opt = optim.AdamW(
         model.parameters(),
@@ -77,6 +92,30 @@ def train(cfg: Dict[str, Any]):
     name = cfg.get("name", "rf_cond")
     out_dir = Path("runs") / name
     (out_dir / "samples").mkdir(parents=True, exist_ok=True)
+
+    meta = {
+        "name": name,
+        "data_root": cfg["data"]["root"],
+        "train_size": train_size,
+        "val_size": val_size,
+        "num_classes": num_classes,
+        "class_counts": class_counts,
+        "image_size": cfg["data"]["image_size"],
+        "batch_size": cfg["data"]["batch_size"],
+        "model_params": param_stats,
+        "cfg": cfg,
+        "start_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with open(out_dir / "run_meta.json", "w") as f:
+        json.dump(meta, f, indent=2)
+
+    # also log to console
+    print(f"[INFO] run: {name}")
+    print(f"[INFO] train size: {train_size} | val size: {val_size} | classes: {num_classes}")
+    print(f"[INFO] class counts: {class_counts}")
+    print(f"[INFO] model params: {param_stats['trainable']:,} trainable / {param_stats['total']:,} total")
+    print(f"[INFO] data/model setup took {time.time() - t0:.2f}s")
 
     # Hyperparams
     epochs = cfg["train"].get("epochs", 120)
