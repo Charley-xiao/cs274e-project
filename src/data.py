@@ -5,6 +5,7 @@ from torchvision import datasets, transforms
 from .util import EUROSAT_MEAN, EUROSAT_STD, unnormalize_to01
 from torchvision.utils import save_image
 import os
+import json
 
 from typing import Tuple
 
@@ -82,6 +83,7 @@ def compute_mean_std(dataset: Dataset,
 def export_validation_images(dataset: Dataset, save_dir: str, mean: Tensor, std: Tensor):
     """
     Saves validation images to disk (save_dir/label) after unnormalizing them for FID calculation.
+    Also saves the class mappings to a json file in save_dir/class_mappings.json.
 
     Args:
         dataset (torch.utils.data.Dataset): The dataset containing validation images.
@@ -89,6 +91,11 @@ def export_validation_images(dataset: Dataset, save_dir: str, mean: Tensor, std:
         mean (torch.Tensor): mean used to normalize.
         std (torch.Tensor): std used to normalize.
     """
+    id_classes = {v: k for k, v in dataset.dataset.class_to_idx.items()}
+
+    with open(os.path.join(save_dir, "class_mappings.json"), "w") as f:
+        json.dump(id_classes, f)
+    
     os.makedirs(save_dir, exist_ok=True)
     for i, (img, label) in enumerate(dataset):
         img = unnormalize_to01(img, mean, std)
