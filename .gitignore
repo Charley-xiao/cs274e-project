@@ -79,3 +79,4 @@ lightning_logs/
 .env
 .env.*
 *.env
+/samples_out
