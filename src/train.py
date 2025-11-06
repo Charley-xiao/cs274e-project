@@ -21,18 +21,6 @@ def set_seed(seed: int = 42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = True
 
-class EMA:
-    def __init__(self, model, decay=0.999):
-        self.decay = decay
-        self.shadow = {k: v.detach().clone() for k, v in model.state_dict().items()}
-    @torch.no_grad()
-    def update(self, model):
-        for k, v in model.state_dict().items():
-            if v.dtype.is_floating_point:
-                self.shadow[k].mul_(self.decay).add_(v.detach(), alpha=1 - self.decay)
-    def copy_to(self, model):
-        model.load_state_dict(self.shadow, strict=False)
-
 def sample_t(batch_size: int, device: torch.device, mode: str = "uniform"):
     if mode == "beta_half":
         t = torch.distributions.Beta(0.5, 0.5).sample((batch_size, 1, 1, 1)).to(device)
@@ -76,6 +64,7 @@ def train(cfg: Dict[str, Any]):
 
     # Model (+ num_classes passed in cfg['cond'])
     model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
+    print(model)
     param_stats = count_parameters(model)
 
     opt = optim.AdamW(
@@ -84,7 +73,6 @@ def train(cfg: Dict[str, Any]):
         betas=cfg["opt"].get("betas", (0.9, 0.999)),
         weight_decay=float(cfg["opt"].get("wd", 2e-2)),
     )
-    ema = EMA(model, decay=float(cfg["opt"].get("ema", 0.999)))
 
     # Output dirs
     name = cfg.get("name", "rf_cond")
@@ -142,7 +130,6 @@ def train(cfg: Dict[str, Any]):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             opt.step()
-            ema.update(model)
             step += 1
 
             if step % log_every == 0:
@@ -153,11 +140,8 @@ def train(cfg: Dict[str, Any]):
                 else:
                     print(f"[ep {ep:03d} | step {step:06d}] loss={loss.item():.4f} lr={lr:.2e}")
 
-        # quick EMA samples (class-conditional grid for first few classes)
         if ep % cfg["train"].get("save_every", 10) == 0:
             model.eval()
-            ema_model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
-            ema.copy_to(ema_model)
             with torch.no_grad():
                 C = cfg.get("model", {}).get("in_channels", 3)
                 H = W = cfg["data"]["image_size"]
@@ -167,7 +151,7 @@ def train(cfg: Dict[str, Any]):
                 for cls in range(n_show):
                     z0 = torch.randn(per_class, C, H, W, device=device)
                     y_grid = torch.full((per_class,), cls, device=device, dtype=torch.long)
-                    x1 = integrate(lambda X, T, Y: ema_model(X, T, Y),
+                    x1 = integrate(lambda X, T, Y: model(X, T, Y),
                                 z0, nfe=4, solver=cfg.get("sample", {}).get("solver", "heun"),
                                 y=y_grid, guidance_scale=cfg.get("sample", {}).get("guidance_scale", 0.0))
                     imgs.append(x1)
@@ -175,16 +159,12 @@ def train(cfg: Dict[str, Any]):
                 save_image(unnormalize_to01(X), out_dir / f"samples/ep{ep:03d}_grid.png", nrow=per_class)
 
             ckpt = {
-                "model_ema": ema.shadow,
                 "model": model.state_dict(),
                 "config": cfg,
                 "step": step,
                 "epoch": ep,
             }
             torch.save(ckpt, out_dir / "last.ckpt")
-
-    with open(out_dir / "metrics.json", "w") as f:
-        json.dump({"epochs": epochs, "steps": step}, f, indent=2)
 
 def main():
     ap = argparse.ArgumentParser()

@@ -7,18 +7,17 @@ data:
   num_workers: 4
 model:
   in_channels: 3
-  base_channels: 48
+  base_channels: 64
   channel_mult: [1, 2, 4]
   num_res_blocks: 1
   cond_dim: 256
   dropout: 0.0
 opt:
   lr: 2e-4
-  wd: 2e-2
-  ema: 0.999
+  wd: 2e-2        
 train:
   epochs: 120
-  t_sampling: "uniform"   # or "beta_half"
+  t_sampling: "beta_half"   # or "uniform"
   log_every: 100
   grad_clip: 1.0
   save_every: 10
