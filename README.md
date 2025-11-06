@@ -19,11 +19,6 @@ python -m src.train --cfg configs/rf_div.yaml
 python -m src.sample --ckpt runs/rf_cond/last.ckpt --nfe 1 2 4 \
   --classes 0 1 2 3 4 --guidance_scale 1.5
 
-# Sampling with metrics + viz (8 trajectories for PCA)
-python -m src.sample --ckpt runs/rf_cond/last.ckpt --nfe 1 2 4 8 \
-  --classes 0 1 2 3 4 --guidance_scale 1.5 --viz_traces 8 --out samples_out
-
-
 # 4) eval (FID/IS)
 python -m src.eval --real data/eurosat_val --fake samples_out/nfe4 --outfile fid.json
 ```
