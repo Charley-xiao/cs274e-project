@@ -1,0 +1,27 @@
+name: "rf_cond_div"
+seed: 42
+data:
+  root: "./data"
+  image_size: 64
+  batch_size: 128
+  num_workers: 4
+model:
+  in_channels: 3
+opt:
+  lr: 2e-4
+  wd: 2e-2
+  ema: 0.999
+train:
+  epochs: 120
+  t_sampling: "uniform"
+  log_every: 100
+  grad_clip: 1.0
+sample:
+  solver: "heun"
+  guidance_scale: 0.0
+cond:
+  num_classes: 10
+  p_uncond: 0.1
+loss:
+  lambda_div: 1.0e-3      # sweep: {0, 1e-4, 1e-3, 5e-3}
+  hutch_probes: 1         # 1–4; increases cost linearly
