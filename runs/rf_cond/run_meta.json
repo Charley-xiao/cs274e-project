@@ -17,7 +17,7 @@
       "root": "./data",
       "image_size": 64,
       "batch_size": 128,
-      "num_workers": 4
+      "num_workers": 2
     },
     "model": {
       "in_channels": 3,
@@ -37,7 +37,7 @@
     },
     "train": {
       "epochs": 120,
-      "t_sampling": "uniform",
+      "t_sampling": "beta_half",
       "log_every": 100,
       "grad_clip": 1.0,
       "save_every": 10
@@ -51,5 +51,5 @@
       "p_uncond": 0.1
     }
   },
-  "start_time": "2025-10-30 16:20:14"
+  "start_time": "2025-11-05 22:21:53"
 }

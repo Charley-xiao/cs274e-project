@@ -49,11 +49,13 @@ def main():
         X = []
         bs = min(args.num, 64)
         for i in range(0, args.num, bs):
-            x_chunk = integrate(lambda X_, T_, Y_: model(X_, T_, Y_),
+            x_chunk, traj_len = integrate(lambda X_, T_, Y_: model(X_, T_, Y_),
                                 z0[i:i+bs], nfe=nfe, solver=solver,
                                 y=None if y is None else y[i:i+bs],
                                 guidance_scale=args.guidance_scale)
             X.append(x_chunk.cpu())
+            print(f"NFE={nfe} | Processed {i+bs if i+bs<args.num else args.num}/{args.num} | "
+                  f"Avg. traj. len: {traj_len:.4f}")
         X = torch.cat(X, dim=0)
 
         grid_path = out_dir / f"grid_nfe{nfe}.png"

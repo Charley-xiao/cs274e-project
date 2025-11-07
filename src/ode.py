@@ -32,9 +32,10 @@ def integrate(
     solver: str = "heun",
     y: Optional[torch.Tensor] = None,
     guidance_scale: float = 0.0,
-) -> Tensor:
+    report_traj_len: bool = False,
+) -> Tensor |tuple[Tensor, float]:
     """
-    Integrate dx/dt = v_theta(x,t,y) from t=0->1. Supports CFG guidance.
+    Integrate dx/dt = v_theta(x,t,y) from t=0->1. Supports CFG guidance. Reports average trajectory length if requested.
     Args:
         z0: (B,C,H,W)
         y:  (B,) class indices; use -1 for unconditional; None --> unconditional for all.
@@ -43,6 +44,7 @@ def integrate(
     B = x.shape[0]
     steps = max(1, nfe)
     h = 1.0 / steps
+    traj_len = 0.0
 
     if solver not in {"euler", "heun"}:
         raise ValueError(f"Unknown solver '{solver}'")
@@ -52,11 +54,15 @@ def integrate(
         if solver == "euler":
             f_k = _guided_v(v_theta, x, t_k, y, guidance_scale)
             x = x + h * f_k
+            traj_len += h * f_k.flatten(1).norm(dim=1).mean().item() # avg over batch
         else:  # Heun
             f_k = _guided_v(v_theta, x, t_k, y, guidance_scale)
             t_k1 = torch.full((B, 1, 1, 1), (k + 1) * h, device=x.device, dtype=x.dtype)
             x_pred = x + h * f_k
             f_k1 = _guided_v(v_theta, x_pred, t_k1, y, guidance_scale)
             x = x + 0.5 * h * (f_k + f_k1)
+            traj_len += 0.5 * h * (f_k.flatten(1).norm(dim=1) + f_k1.flatten(1).norm(dim=1)).mean().item()
 
+    if report_traj_len:
+        return x, traj_len
     return x
