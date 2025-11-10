@@ -15,7 +15,15 @@ def main():
 
     metrics = calculate_metrics(
         input1=args.fake, input2=args.real,
-        fid=True, isc=True, verbose=True, cuda=True,
+        fid=True, 
+        isc=True, 
+        precision=True,
+        recall=True,
+        density=True,
+        coverage=True,
+        verbose=True, 
+        cuda=True,
+        kid=True,
         samples_find_deep=True,
     )
     print(metrics)

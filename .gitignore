@@ -80,3 +80,5 @@ lightning_logs/
 .env.*
 *.env
 /samples_out
+/archive
+/runs

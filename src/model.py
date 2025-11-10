@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 def timestep_embedding(t: torch.Tensor, dim: int) -> torch.Tensor:
     """
     Sinusoidal embedding for times t in [0,1].
@@ -269,3 +268,110 @@ def create_model(cfg: Dict, num_classes: int) -> nn.Module:
         num_classes=num_classes,
         dropout=dropout,
     )
+
+
+def create_model_using_diffusers(cfg: Dict, num_classes: int) -> nn.Module:
+    """
+    Factory to create a U-Net model using the diffusers library, wrapped to expose
+    the same interface as our in-house model: forward(x, t, y) -> velocity.
+
+    Notes
+    -----
+    - Uses UNet2DConditionModel with Cross-Attention blocks.
+    - Conditioning is provided via encoder_hidden_states (class embedding).
+    - Time conditioning is handled by the UNet's own timestep embedding.
+    - For y == -1 (unconditional), we map to a learned "null" class (index = num_classes).
+    """
+    from diffusers import UNet2DConditionModel
+
+    in_channels    = cfg.get("in_channels", 3)
+    base_channels  = cfg.get("base_channels", 64)
+    channel_mult   = tuple(cfg.get("channel_mult", (1, 2, 2, 4)))
+    num_res_blocks = cfg.get("num_res_blocks", 2)
+    cond_dim       = cfg.get("cond_dim", 256)   # cross_attention_dim
+    dropout        = cfg.get("dropout", 0.0)
+    sample_size    = cfg.get("sample_size", None)  # e.g., 64; None is fine
+    attn_head_dim  = cfg.get("attention_head_dim", 8)  # per-block or scalar
+    num_train_ts   = int(cfg.get("num_train_timesteps", 1000))  # for scaling t∈[0,1] → [0, num_train_ts)
+
+    # Map (base_channels, channel_mult) -> per-stage channels
+    block_out_channels = tuple(base_channels * m for m in channel_mult)
+
+    # Cross-attention blocks so encoder_hidden_states is used
+    down_block_types = tuple(["CrossAttnDownBlock2D"] * len(block_out_channels))
+    up_block_types   = tuple(["CrossAttnUpBlock2D"]   * len(block_out_channels))
+
+    # Pick a single GroupNorm group count that divides every stage's channels
+    def _choose_group_num(ch_list):
+        for g in (32, 16, 8, 4, 2, 1):
+            if all((c % g == 0) for c in ch_list):
+                return g
+        return 1
+    norm_num_groups = _choose_group_num(block_out_channels)
+
+    # attention_head_dim can be a scalar or a list per block; make it a list
+    if isinstance(attn_head_dim, int):
+        attention_head_dim = [attn_head_dim] * len(block_out_channels)
+    else:
+        attention_head_dim = list(attn_head_dim)
+        assert len(attention_head_dim) == len(block_out_channels), \
+            "attention_head_dim must be int or list matching block_out_channels length."
+
+    # Build the Diffusers UNet (outputs a dict with .sample)
+    diff_unet = UNet2DConditionModel(
+        sample_size=sample_size,
+        in_channels=in_channels,
+        out_channels=in_channels,                 # predict velocity with same shape as input
+        down_block_types=down_block_types,
+        up_block_types=up_block_types,
+        block_out_channels=block_out_channels,
+        layers_per_block=num_res_blocks,
+        cross_attention_dim=cond_dim,             # class embedding dim
+        attention_head_dim=attention_head_dim,
+        norm_num_groups=norm_num_groups,
+        dropout=dropout,
+    )
+
+    class DiffusersUNetWrapper(nn.Module):
+        """
+        Wrap diffusers' UNet2DConditionModel to match our API:
+            forward(x, t, y) -> velocity (same shape as x)
+        - t: (B,1,1,1) in [0,1]; internally mapped to diffusion-style timesteps [0, num_train_ts).
+        - y: (B,) Long; -1 means unconditional → mapped to learned null token at index num_classes.
+        """
+        def __init__(self, unet: UNet2DConditionModel, num_classes: int, cond_dim: int, num_train_ts: int):
+            super().__init__()
+            self.unet = unet
+            self.num_classes = num_classes
+            self.null_idx = num_classes
+            self.class_emb = nn.Embedding(num_classes + 1, cond_dim)  # last idx = null/uncond
+            self.num_train_ts = num_train_ts
+
+        def forward(self, x: torch.Tensor, t: torch.Tensor, y: Optional[torch.Tensor]) -> torch.Tensor:
+            B = x.shape[0]
+            # Prepare timesteps for diffusers (float or long, shape (B,))
+            if t.dim() == 4:
+                t_flat = t.view(B)
+            elif t.dim() == 2:
+                t_flat = t.view(B)
+            else:
+                t_flat = t
+            timesteps = (t_flat.clamp(0, 1) * (self.num_train_ts - 1)).to(device=x.device, dtype=x.dtype)
+
+            # Process labels with unconditional token
+            if y is None:
+                y_proc = torch.full((B,), self.null_idx, device=x.device, dtype=torch.long)
+            else:
+                y_proc = y.to(device=x.device, dtype=torch.long)
+                y_proc = torch.where(y_proc < 0, torch.full_like(y_proc, self.null_idx), y_proc)
+                y_proc = y_proc.clamp_(0, self.null_idx)  # safety
+
+            # Class conditioning via encoder_hidden_states (B, 1, cond_dim)
+            enc = self.class_emb(y_proc).unsqueeze(1)
+
+            # Diffusers UNet forward; returns a UNet2DConditionOutput with .sample
+            out = self.unet(sample=x, timestep=timesteps, encoder_hidden_states=enc)
+            v = out.sample if hasattr(out, "sample") else out
+            return v
+
+    return DiffusersUNetWrapper(diff_unet, num_classes=num_classes, cond_dim=cond_dim, num_train_ts=num_train_ts)

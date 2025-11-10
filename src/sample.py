@@ -5,7 +5,7 @@ import torch
 from torchvision.utils import save_image
 
 from .ode import integrate
-from .model import create_model
+from .model import create_model, create_model_using_diffusers
 from .util import unnormalize_to01
 
 @torch.no_grad()
@@ -29,7 +29,11 @@ def main():
     num_classes = cfg["cond"]["num_classes"]
 
     # model (EMA if present)
-    model = create_model(cfg.get("model", {}), num_classes=num_classes).to(device).eval()
+    if cfg.get("model", {}).get("use_diffusers", False):
+        print("[INFO] using Diffusers UNet model architecture")
+        model = create_model_using_diffusers(cfg.get("model", {}), num_classes=num_classes).to(device).eval()
+    else:
+        model = create_model(cfg.get("model", {}), num_classes=num_classes).to(device).eval()
     model.load_state_dict(ckpt.get("model_ema", ckpt["model"]), strict=False)
 
     out_dir = Path(args.out); out_dir.mkdir(parents=True, exist_ok=True)
@@ -52,7 +56,8 @@ def main():
             x_chunk, traj_len = integrate(lambda X_, T_, Y_: model(X_, T_, Y_),
                                 z0[i:i+bs], nfe=nfe, solver=solver,
                                 y=None if y is None else y[i:i+bs],
-                                guidance_scale=args.guidance_scale)
+                                guidance_scale=args.guidance_scale,
+                                report_traj_len=True)
             X.append(x_chunk.cpu())
             print(f"NFE={nfe} | Processed {i+bs if i+bs<args.num else args.num}/{args.num} | "
                   f"Avg. traj. len: {traj_len:.4f}")

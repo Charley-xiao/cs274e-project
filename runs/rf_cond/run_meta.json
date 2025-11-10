@@ -5,7 +5,7 @@
   "val_size": 5400,
   "num_classes": 10,
   "image_size": 64,
-  "batch_size": 128,
+  "batch_size": 64,
   "model_params": {
     "total": 7711427,
     "trainable": 7711427
@@ -16,10 +16,11 @@
     "data": {
       "root": "./data",
       "image_size": 64,
-      "batch_size": 128,
-      "num_workers": 2
+      "batch_size": 64,
+      "num_workers": 0
     },
     "model": {
+      "use_diffusers": false,
       "in_channels": 3,
       "base_channels": 64,
       "channel_mult": [
@@ -36,7 +37,7 @@
       "wd": "2e-2"
     },
     "train": {
-      "epochs": 120,
+      "epochs": 600,
       "t_sampling": "beta_half",
       "log_every": 100,
       "grad_clip": 1.0,
@@ -51,5 +52,5 @@
       "p_uncond": 0.1
     }
   },
-  "start_time": "2025-11-05 22:21:53"
+  "start_time": "2025-11-09 23:50:56"
 }

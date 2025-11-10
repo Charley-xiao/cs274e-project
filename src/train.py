@@ -13,7 +13,7 @@ from torchvision.utils import save_image
 from .loss import rf_loss, rf_div_loss
 from .ode import integrate
 from .data import eurosat_dataloaders
-from .model import create_model
+from .model import create_model, create_model_using_diffusers
 from .util import unnormalize_to01
 
 def set_seed(seed: int = 42):
@@ -21,7 +21,7 @@ def set_seed(seed: int = 42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = True
 
-def sample_t(batch_size: int, device: torch.device, mode: str = "uniform"):
+def sample_t(batch_size: int, device: torch.device, mode: str = "uniform") -> torch.Tensor:
     if mode == "beta_half":
         t = torch.distributions.Beta(0.5, 0.5).sample((batch_size, 1, 1, 1)).to(device)
     else:
@@ -63,7 +63,11 @@ def train(cfg: Dict[str, Any]):
     num_classes = cfg["cond"]["num_classes"]
 
     # Model (+ num_classes passed in cfg['cond'])
-    model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
+    if cfg.get("model", {}).get("use_diffusers", False):
+        print("[INFO] using Diffusers UNet model architecture")
+        model = create_model_using_diffusers(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
+    else:
+        model = create_model(cfg.get("model", {}), num_classes=cfg["cond"]["num_classes"]).to(device)
     print(model)
     param_stats = count_parameters(model)
 

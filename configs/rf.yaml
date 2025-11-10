@@ -3,9 +3,10 @@ seed: 42
 data:
   root: "./data"
   image_size: 64
-  batch_size: 128
-  num_workers: 4
+  batch_size: 64
+  num_workers: 0
 model:
+  use_diffusers: False
   in_channels: 3
   base_channels: 64
   channel_mult: [1, 2, 4]
@@ -16,7 +17,7 @@ opt:
   lr: 2e-4
   wd: 2e-2        
 train:
-  epochs: 120
+  epochs: 600
   t_sampling: "beta_half"   # or "uniform"
   log_every: 100
   grad_clip: 1.0
