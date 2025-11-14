@@ -2,8 +2,6 @@
 
 ## TL;DR
 
-RF-Div: https://openreview.net/forum?id=FeZimuj6SG
-
 ```bash
 # 0) env
 python -m venv .venv && source .venv/bin/activate

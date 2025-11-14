@@ -39,7 +39,7 @@
     "train": {
       "epochs": 600,
       "t_sampling": "beta_half",
-      "log_every": 100,
+      "log_every": 5,
       "grad_clip": 1.0,
       "save_every": 10
     },
@@ -52,5 +52,5 @@
       "p_uncond": 0.1
     }
   },
-  "start_time": "2025-11-09 23:50:56"
+  "start_time": "2025-11-14 13:39:11"
 }

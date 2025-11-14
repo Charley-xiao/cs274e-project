@@ -113,6 +113,10 @@ def train(cfg: Dict[str, Any]):
     p_uncond = cfg["cond"].get("p_uncond", 0.1)
     lambda_div = cfg.get("loss", {}).get("lambda_div", 0.0)
     hutch_probes = cfg.get("loss", {}).get("hutch_probes", 1)
+    estimator = cfg.get("loss", {}).get("estimator", "fd")
+    delta_fd = cfg.get("loss", {}).get("delta_fd", 1e-3)
+    div_batch_frac = cfg.get("loss", {}).get("div_batch_frac", 1.0)
+    div_every = cfg.get("loss", {}).get("div_every", 1)
 
     step = 0
     for ep in trange(1, epochs + 1):
@@ -126,8 +130,19 @@ def train(cfg: Dict[str, Any]):
             y_cf = maybe_drop_labels(y, p_uncond)
 
             opt.zero_grad(set_to_none=True)
-            if lambda_div > 0:
-                losses = rf_div_loss(model, x, z, t, y_cf, lambda_div=lambda_div, hutch_probes=hutch_probes)
+            use_div = (lambda_div > 0.0) and ( (step % div_every) == 0 )
+            if use_div:
+                # losses = rf_div_loss(model, x, z, t, y_cf, lambda_div=lambda_div, hutch_probes=hutch_probes)
+                # loss = losses["loss"]
+                lam_eff = lambda_div * div_every
+                losses = rf_div_loss(
+                    model, x, z, t, y_cf,
+                    lambda_div=lam_eff,
+                    hutch_probes=hutch_probes,
+                    estimator=estimator,
+                    div_batch_frac=div_batch_frac,
+                    delta_fd=delta_fd,
+                )
                 loss = losses["loss"]
             else:
                 loss = rf_loss(model, x, z, t, y_cf)

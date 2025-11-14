@@ -1,0 +1,37 @@
+name: "rf_cond_div"
+seed: 42
+data:
+  root: "./data"
+  image_size: 64
+  batch_size: 64
+  num_workers: 0
+model:
+  use_diffusers: False
+  in_channels: 3
+  base_channels: 64
+  channel_mult: [1, 2, 4]
+  num_res_blocks: 1
+  cond_dim: 256
+  dropout: 0.0
+opt:
+  lr: 2e-4
+  wd: 2e-2        
+train:
+  epochs: 600
+  t_sampling: "beta_half"   # or "uniform"
+  log_every: 100
+  grad_clip: 1.0
+  save_every: 10
+sample:
+  solver: "heun"          # "euler" | "heun"
+  guidance_scale: 0.0     # runtime CFG scale
+cond:
+  num_classes: 10         # EuroSAT-RGB has 10 classes
+  p_uncond: 0.1           # classifier-free dropout prob during training
+loss:
+  lambda_div: 1.0e-3
+  hutch_probes: 1
+  estimator: "jvp"
+  delta_fd: 1.0e-3         # step along ε (scaled by 1/sqrt(CHW) internally)
+  div_batch_frac: 0.25     # compute div term on 25% of the batch
+  div_every: 4             # only add div every 4 steps (remember λ scaling in train.py)
