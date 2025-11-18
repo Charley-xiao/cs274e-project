@@ -29,7 +29,7 @@ cond:
   num_classes: 10         # EuroSAT-RGB has 10 classes
   p_uncond: 0.1           # classifier-free dropout prob during training
 loss:
-  lambda_div: 1.0e-3
+  lambda_div: 5.0e-7
   hutch_probes: 1
   estimator: "jvp"
   delta_fd: 1.0e-3         # step along ε (scaled by 1/sqrt(CHW) internally)
