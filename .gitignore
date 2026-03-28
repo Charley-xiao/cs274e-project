@@ -88,3 +88,7 @@ lightning_logs/
 /samples_sweep
 /solver_trajectory_vis
 /samples_sweep_old
+/traj_diag_main_shared
+/traj_diag_main_old
+/traj_figs
+/traj_figs_shared
