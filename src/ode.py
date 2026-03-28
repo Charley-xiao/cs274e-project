@@ -33,6 +33,7 @@ def integrate(
     y: Optional[torch.Tensor] = None,
     guidance_scale: float = 0.0,
     report_traj_len: bool = False,
+    record_states: bool = False,
 ) -> Tensor |tuple[Tensor, float]:
     """
     Integrate dx/dt = v_theta(x,t,y) from t=0->1. Supports CFG guidance. Reports average trajectory length if requested.
@@ -45,6 +46,7 @@ def integrate(
     steps = max(1, nfe)
     h = 1.0 / steps
     traj_len = 0.0
+    states = [x.detach().clone()] if record_states else None
 
     if solver not in {"euler", "heun"}:
         raise ValueError(f"Unknown solver '{solver}'")
@@ -62,7 +64,11 @@ def integrate(
             f_k1 = _guided_v(v_theta, x_pred, t_k1, y, guidance_scale)
             x = x + 0.5 * h * (f_k + f_k1)
             traj_len += 0.5 * h * (f_k.flatten(1).norm(dim=1) + f_k1.flatten(1).norm(dim=1)).mean().item()
-
+        if record_states:
+            states.append(x.detach().clone())
+    if record_states:
+        states = torch.stack(states, dim=0)
+        return x, states
     if report_traj_len:
         return x, traj_len
     return x

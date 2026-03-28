@@ -106,7 +106,8 @@ def main():
 
             tag = f"{method}_nfe{k}" if k else f"{method}_adaptive"
             grid_path = out_dir / f"grid_{tag}.png"
-            save_image(unnormalize_to01(X), grid_path, nrow=int(args.num**0.5) or 8)
+            # save_image(unnormalize_to01(X), grid_path, nrow=int(args.num**0.5) or 8)
+            save_image(unnormalize_to01(X), grid_path, nrow=10)
 
             # also save per-image PNGs for FID/IS
             fake_dir = out_dir / tag

@@ -84,3 +84,7 @@ lightning_logs/
 /runs
 /600rf
 /samples_cmp
+/samples_cmp_old
+/samples_sweep
+/solver_trajectory_vis
+/samples_sweep_old

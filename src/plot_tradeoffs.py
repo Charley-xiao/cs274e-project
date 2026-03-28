@@ -62,7 +62,7 @@ def scatter_with_labels(
 
 def main():
     # path to your JSON file
-    json_path = "samples_cmp/sampler_metrics.json"  # change if needed
+    json_path = "samples_cmp_old/sampler_metrics.json"  # change if needed
     df = load_runs(json_path)
 
     # Ensure output dir exists
