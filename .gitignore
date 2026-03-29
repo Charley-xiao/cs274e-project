@@ -92,3 +92,8 @@ lightning_logs/
 /traj_diag_main_old
 /traj_figs
 /traj_figs_shared
+/class_eval
+/real_val_by_class
+/bundle_figs
+/class_sensitivity_figs
+/class_sensitivity_out

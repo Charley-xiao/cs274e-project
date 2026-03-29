@@ -163,9 +163,6 @@ def _integrate_ab2(
 
     snapshots = _finalize_snapshots(x, save_times_sorted, snapshots) if return_snapshots else None
 
-    if not return_metrics and not return_snapshots:
-        return x, fe, None
-
     return x, fe, metrics, snapshots
 
 # ---- adaptive RK23 (Bogacki–Shampine) ---------------------------------------
